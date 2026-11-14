@@ -1,0 +1,354 @@
+@property --wind {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+:root {
+  --wind: 1;
+  transition: --wind 2.5s ease-in-out;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  background: #d7dde8;
+}
+
+
+.scene {
+  position: relative;
+  overflow: hidden;     
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #a8b6cf 0%, #bcc7d9 45%, #d7dde8 100%);
+}
+
+#scene {
+  width: clamp(520px, 92vw, 1150px);
+  height: auto;
+  overflow: visible;
+  display: block;
+}
+
+[hidden] { display: none !important; }
+
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 6vh;
+  transform: translateX(-50%);
+  font: 500 1rem/1 system-ui, sans-serif;
+  color: #2f3b57;
+  opacity: 0;
+  animation: hint-in 1.2s ease-out 2s forwards;
+  pointer-events: none;
+  transition: opacity .5s;
+}
+.hint.gone { opacity: 0 !important; animation: none; }
+
+@keyframes hint-in { to { opacity: .7; } }
+
+.door { cursor: pointer; outline: none; }
+
+.door-panel {
+  transform-box: view-box;
+  transform-origin: 56px 45px;     
+  transition: transform .45s cubic-bezier(.3, .7, .3, 1);
+}
+
+.door:hover .door-panel,
+.door:focus-visible .door-panel { transform: scaleX(.84); }
+
+.door:focus-visible .door-frame { stroke: #3d4965; stroke-width: 3; }
+
+.door-shade { transition: opacity .9s ease; }
+
+#scene.is-open .door { cursor: default; pointer-events: none; }
+#scene.is-open .door-panel { transform: scaleX(.12); transition-duration: .9s; }
+#scene.is-open .door-shade { opacity: .45; }
+
+.door-spill { opacity: 0; transition: opacity 1s ease-out; }
+#scene.is-open .door-spill { opacity: 1; }
+
+.door-burst {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 1.2s ease-out, transform 2.6s ease-in;
+}
+#scene.is-open .door-burst { opacity: 1; transform: scale(2.6); }
+
+#camera { transform-origin: 0 0; }
+
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, #fffdf0 0%, #ffefb8 45%, #ffd98a 100%);
+}
+
+.inside {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(180deg, #edf1f9 0%, #dfe5f1 100%);
+  animation: page-in 1.2s ease-out;
+}
+
+#room {
+  width: min(100%, calc(100vh * 1.13));
+  height: auto;
+  display: block;
+  overflow: visible;
+  animation: room-settle 2.2s cubic-bezier(.2, .7, .2, 1);
+}
+
+@keyframes room-settle {
+  from { transform: scale(1.12); }
+  to   { transform: scale(1); }
+}
+
+.back-btn {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 2;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #1b2845;
+  color: #fff;
+  font: 600 .95rem system-ui, sans-serif;
+  cursor: pointer;
+  transition: background .2s;
+}
+.back-btn:hover { background: #33466f; }
+.back-btn:focus-visible { outline: 3px solid #5d7094; outline-offset: 3px; }
+
+#room .room { animation: bob 7s ease-in-out infinite; }
+#room .room-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: shadow-breathe 7s ease-in-out infinite;
+}
+
+.leaf {
+  animation: leaf-sway var(--du, 4s) ease-in-out infinite;
+  animation-delay: var(--dl, 0s);
+}
+@keyframes leaf-sway {
+  0%, 100% { transform: rotate(-2.2deg); }
+  50%      { transform: rotate(2.6deg); }
+}
+
+.cat-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: breathe 3.4s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.07); }
+}
+
+.light-patch { animation: light-breathe 6s ease-in-out infinite; }
+@keyframes light-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .72; }
+}
+.glint { animation: glint 7s ease-in-out infinite; }
+@keyframes glint {
+  0%, 100% { opacity: .28; }
+  50%      { opacity: .08; }
+}
+
+.mote {
+  opacity: 0;
+  animation: mote-float var(--t, 7s) ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes mote-float {
+  0%   { opacity: 0;  transform: translate(0, 0); }
+  25%  { opacity: .9; }
+  100% { opacity: 0;  transform: translate(var(--dx, 8px), var(--dy, -50px)); }
+}
+
+.monitor-glow { animation: screen-glow 4.5s ease-in-out infinite; }
+@keyframes screen-glow {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: .32; }
+}
+
+.hotspot { cursor: pointer; outline: none; }
+
+.hs-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hs-pulse 2.6s ease-out infinite;
+}
+@keyframes hs-pulse {
+  0%   { transform: scale(.7); opacity: .9; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.hs-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform .2s ease;
+}
+.hotspot:hover .hs-dot,
+.hotspot:focus-visible .hs-dot { transform: scale(1.2); }
+
+.tip { opacity: 0; transition: opacity .2s ease; }
+.hotspot:hover .tip,
+.hotspot:focus .tip { opacity: 1; }
+
+.scene.back-in { animation: page-in 1s ease-out; }
+
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+
+.island {
+  animation: bob 7s ease-in-out infinite;
+}
+
+.ground-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: shadow-breathe 7s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+
+@keyframes shadow-breathe {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(.94);  opacity: .75; }
+}
+
+.tree,
+.canopy {
+  transform-origin: 0 0;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.tree {
+  animation-name: sway;
+  animation-duration: var(--dur, 4s);
+}
+
+.canopy {
+  animation-name: flutter;
+  animation-duration: var(--dur, 2.8s);
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(calc(var(--a, -2) * var(--wind) * 1deg)); }
+  50%      { transform: rotate(calc(var(--b, 3)  * var(--wind) * 1deg)); }
+}
+
+@keyframes flutter {
+  0%, 100% { transform: rotate(calc(var(--a, -1.5) * var(--wind) * 1deg)) scale(1); }
+  50%      { transform: rotate(calc(var(--b, 2)    * var(--wind) * 1deg)) scale(1.025); }
+}
+
+.wind path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 45 100;
+  stroke-dashoffset: 45;
+  opacity: .9;
+  animation: wind-flow var(--t, 5s) linear infinite;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes wind-flow {
+  from { stroke-dashoffset: 45; }
+  to   { stroke-dashoffset: -100; }
+}
+
+.cloud {
+  animation: drift var(--d, 300s) linear infinite;
+  animation-delay: var(--s, 0s);
+}
+
+@keyframes drift {
+  from { transform: translateX(-900px); }
+  to   { transform: translateX(1700px); }
+}
+
+.smoke circle {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: smoke-rise 6s ease-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes smoke-rise {
+  0%   { opacity: 0;   transform: translate(0, 0) scale(.5); }
+  15%  { opacity: .65; }
+  100% { opacity: 0;   transform: translate(calc(80px * var(--wind)), -46px) scale(1.9); }
+}
+
+.glow-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: glow 3.6s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: .72; transform: scale(1.06); }
+}
+
+.window-flicker {
+  animation: flicker 5s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  45%      { opacity: .92; }
+  50%      { opacity: .82; }
+  55%      { opacity: .95; }
+}
+
+.bell-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ring 2.4s ease-out infinite;
+}
+
+@keyframes ring {
+  0%   { transform: scale(1);   opacity: .9; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+a.back-btn { text-decoration: none; display: inline-block; }
+
+html.arriving .flash { opacity: 1; }
+#scene.no-anim, #scene.no-anim * { transition: none !important; }
