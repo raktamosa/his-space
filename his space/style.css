@@ -5,7 +5,7 @@
 }
 
 :root {
-  color-scheme: light only;
+  color-scheme: light dark;
   --wind: 1;
   transition: --wind 2.5s ease-in-out;
 }
@@ -643,3 +643,9 @@ html.arriving .flash { opacity: 1; }
 .lock-avatar { overflow: hidden; }
 .lock-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lock-avatar.has-photo svg { display: none; }
+
+/* Browser (mis. Samsung Internet) yang memaksa dark mode: halaman ini sudah "mengurus" tema gelapnya sendiri,
+   dan sengaja tampil sama persis dengan mode terang. */
+@media (prefers-color-scheme: dark) {
+  html, body { background: #d7dde8; color: #1b2845; }
+}
