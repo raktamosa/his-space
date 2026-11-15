@@ -54,6 +54,7 @@ const inside = document.getElementById('page2');
 const lampSpot = document.querySelector('.hotspot[aria-label="Lampu meja"]');
 function toggleNight() {
   const on = inside.classList.toggle('night');
+  catAbort();
   lampSpot.setAttribute('aria-pressed', String(on));
 }
 lampSpot.setAttribute('aria-pressed', 'false');
@@ -122,9 +123,8 @@ function petCat() {
     return;
   }
   if (reduceMotion) return;
-  const name = pick(Object.keys(moves).filter((k) => k !== lastMove));
-  lastMove = name;
-  moves[name]();
+  if (catBusy && catMode === 'drink') return;
+  drinkMilk();
 }
 catSpot.addEventListener('click', petCat);
 catGroup.addEventListener('click', petCat);
@@ -191,7 +191,7 @@ const monitorSpot = document.querySelector('.hotspot[aria-label="Layar komputer"
 const monitorScreen = document.querySelector('.monitor-glow').parentNode;
 const isSmall = () => window.matchMedia('(max-width: 640px)').matches;
 const isCoarse = () => window.matchMedia('(pointer: coarse)').matches;
-let activeApp = null, zTop = 10, viewerIdx = 0, pcOpen = false;
+let activeApp = null, zTop = 10, viewerIdx = 0, pcOpen = false, pcPushed = false;
 
 const winVisible = (a) => !wins[a].hidden && !wins[a].classList.contains('min');
 function topVisible() {
@@ -302,10 +302,12 @@ function openPC() {
   document.getElementById('page2').inert = true;
   requestAnimationFrame(() => requestAnimationFrame(() => pc.classList.add('open')));
   (pcLocked ? lockInput : pcScreen).focus({ preventScroll: true });
+  if (!pcPushed) { history.pushState({ ov: 'pc' }, ''); pcPushed = true; }
 }
-function closePC() {
+function closePC(fromPop) {
   if (!pcOpen) return;
   pcOpen = false;
+  if (pcPushed) { pcPushed = false; if (fromPop !== true) history.back(); }
   closeStart();
   pc.classList.remove('open');
   document.getElementById('page2').inert = false;
@@ -337,7 +339,7 @@ const stickyPaper = document.querySelector('.hotspot[aria-label="Catatan tempel"
   .querySelector('g[transform="matrix(1,-0.553,0,1,505.0,298.7)"]');
 const stickyOv = document.getElementById('sticky');
 const stickyNote = document.getElementById('sticky-note');
-let stickyOpen = false;
+let stickyOpen = false, stickyPushed = false;
 function openSticky() {
   if (stickyOpen || pcOpen) return;
   stickyOpen = true;
@@ -345,10 +347,12 @@ function openSticky() {
   inside.inert = true;
   requestAnimationFrame(() => requestAnimationFrame(() => stickyOv.classList.add('open')));
   stickyNote.focus({ preventScroll: true });
+  if (!stickyPushed) { history.pushState({ ov: 'sticky' }, ''); stickyPushed = true; }
 }
-function closeSticky() {
+function closeSticky(fromPop) {
   if (!stickyOpen) return;
   stickyOpen = false;
+  if (stickyPushed) { stickyPushed = false; if (fromPop !== true) history.back(); }
   stickyOv.classList.remove('open');
   inside.inert = false;
   setTimeout(() => { if (!stickyOpen) stickyOv.hidden = true; }, reduceMotion ? 0 : 280);
@@ -364,8 +368,49 @@ stickyOv.addEventListener('click', (e) => { if (e.target === stickyOv) closeStic
 document.addEventListener('keydown', (e) => { if (stickyOpen && e.key === 'Escape') closeSticky(); });
 
 
-/* ===== Lock screen PC ===== */
-const PC_PASSWORD = '467558';   // samakan dengan tulisan di sticky note (id="sticky-text")
+const artOv = document.getElementById('art');
+const artCard = document.getElementById('art-card');
+const artBody = document.getElementById('art-body');
+let artOpen = false, artPushed = false, artSpot = null;
+function openArt(n, spot) {
+  if (artOpen || stickyOpen || pcOpen) return;
+  const tpl = document.querySelector(`template[data-art="${n}"]`);
+  if (!tpl) return;
+  artBody.replaceChildren(tpl.content.cloneNode(true));
+  artSpot = spot || null;
+  artCard.dataset.art = n;                              // warna bingkai ikut bingkai di dinding
+  artOpen = true;
+  artOv.hidden = false;
+  inside.inert = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => artOv.classList.add('open')));
+  artCard.focus({ preventScroll: true });
+  if (!artPushed) { history.pushState({ ov: 'art' }, ''); artPushed = true; }
+}
+function closeArt(fromPop) {
+  if (!artOpen) return;
+  artOpen = false;
+  if (artPushed) { artPushed = false; if (fromPop !== true) history.back(); }
+  artOv.classList.remove('open');
+  inside.inert = false;
+  setTimeout(() => { if (!artOpen) { artOv.hidden = true; artBody.replaceChildren(); } }, reduceMotion ? 0 : 280);
+  if (artSpot) artSpot.focus({ preventScroll: true });
+}
+document.querySelectorAll('.hotspot[data-art]').forEach((h) => {
+  const n = h.dataset.art;
+  h.addEventListener('click', () => openArt(n, h));
+  h.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openArt(n, h); }
+  });
+});
+document.querySelectorAll('.art-frame').forEach((f) => {
+  f.addEventListener('click', () => openArt(f.dataset.art, document.querySelector(`.hotspot[data-art="${f.dataset.art}"]`)));
+});
+document.getElementById('art-close').addEventListener('click', () => closeArt());
+artOv.addEventListener('click', (e) => { if (e.target === artOv) closeArt(); });
+document.addEventListener('keydown', (e) => { if (artOpen && e.key === 'Escape') closeArt(); });
+
+
+const PC_PASSWORD = '467558';   
 const lockEl = document.getElementById('lock');
 const lockForm = document.getElementById('lock-form');
 const lockInput = document.getElementById('lock-input');
@@ -400,10 +445,148 @@ lockForm.addEventListener('submit', (e) => {
 });
 lockInput.addEventListener('input', () => { lockMsg.textContent = ''; });
 
-/* foto user di lock screen: ganti path-nya di sini (kalau gagal dimuat, balik ke ikon siluet) */
 const LOCK_AVATAR = 'picture/jeno 1.jfif';
 const lockAvatar = document.querySelector('.lock-avatar');
 const lockAvatarImg = document.getElementById('lock-avatar-img');
 lockAvatarImg.addEventListener('load', () => { lockAvatarImg.hidden = false; lockAvatar.classList.add('has-photo'); });
 lockAvatarImg.addEventListener('error', () => { lockAvatarImg.hidden = true; lockAvatar.classList.remove('has-photo'); });
 lockAvatarImg.src = LOCK_AVATAR;
+
+document.getElementById('lock-logout').addEventListener('click', () => closePC());
+
+window.addEventListener('popstate', () => {
+  if (artOpen) closeArt(true);
+  else if (stickyOpen) closeSticky(true);
+  else if (pcOpen) closePC(true);
+});
+
+const catPaw = catGroup.querySelector('.cat-paw');
+const catEyes = catGroup.querySelector('.cat-eyes');
+const bowlFx = document.querySelector('.bowl-fx');
+const WALK = { dx: 46, dy: 22 };                       
+const BOWL = { x: 720, y: 841 };                      
+let catBusy = false, catMode = '', catToken = 0, catAnims = [], idleT;
+
+function play(el, frames, opts) {
+  const a = el.animate(frames, Object.assign({ fill: 'forwards' }, opts));
+  catAnims.push(a);
+  return a.finished.then(() => true, () => false);     
+}
+function catStart(mode) {
+  catAbort();
+  catBusy = true; catMode = mode;
+  catSpot.classList.add('busy');
+  return catToken;
+}
+function catAbort() {                                  
+  catToken++;
+  catAnims.forEach((a) => { try { a.cancel(); } catch (e) {} });
+  catAnims = [];
+  fx.querySelectorAll('.cat-fx').forEach((n) => n.remove());
+  bowlFx.querySelectorAll('.cat-fx').forEach((n) => n.remove());
+  catBusy = false; catMode = '';
+  catSpot.classList.remove('busy');
+}
+function walkFrames(x0, y0, x1, y1, steps, hop) {
+  const f = [], n = steps * 4;
+  for (let i = 0; i <= n; i++) {
+    const p = i / n, h = Math.abs(Math.sin(p * steps * Math.PI)) * hop;
+    f.push({ transform: `translate(${x0 + (x1 - x0) * p}px, ${y0 + (y1 - y0) * p - h}px)` });
+  }
+  return f;
+}
+function fxEl(name, attrs) {
+  const n = document.createElementNS(SVG_NS, name);
+  n.setAttribute('class', 'cat-fx');
+  n.setAttribute('pointer-events', 'none');
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  fx.appendChild(n);
+  return n;
+}
+function ripple() {
+  const e = fxEl('ellipse', { cx: BOWL.x, cy: BOWL.y, rx: 8, ry: 4.2, fill: 'none', stroke: '#d8d0bb', 'stroke-width': 1.2 });
+  bowlFx.appendChild(e);                               // ripple di permukaan susu (di belakang kepala)
+  e.style.transformBox = 'fill-box'; e.style.transformOrigin = 'center';
+  e.animate([{ transform: 'scale(.4)', opacity: .95 }, { transform: 'scale(1.35)', opacity: 0 }],
+    { duration: 900, easing: 'ease-out' }).onfinish = () => e.remove();
+}
+function bubbles(n) {
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    if (!catBusy) return;
+    const r = 2.4 + Math.random() * 3.4;
+    const c = fxEl('circle', {
+      cx: 636 + Math.random() * 46, cy: 768 + Math.random() * 30, r,
+      fill: '#fff', 'fill-opacity': .55, stroke: '#9fc3ee', 'stroke-width': 1,
+    });
+    c.style.transformBox = 'fill-box'; c.style.transformOrigin = 'center';
+    c.animate([
+      { transform: 'translate(0,0) scale(.6)', opacity: 0 },
+      { opacity: .95, offset: .2 },
+      { transform: `translate(${Math.random() * 30 - 15}px, ${-(40 + Math.random() * 30)}px) scale(1.1)`, opacity: 0 },
+    ], { duration: 1500 + Math.random() * 600, easing: 'ease-out' }).onfinish = () => c.remove();
+  }, i * 230);
+}
+
+async function drinkMilk() {
+  const t = catStart('drink');
+  const go = async (p) => (await p) && t === catToken;
+  const DIP = 'translate(11px, 25px) rotate(16deg)';
+  const LAP = 'translate(11px, 30px) rotate(22deg)';
+
+  if (!await go(play(catAwake, walkFrames(0, 0, WALK.dx, WALK.dy, 4, 4), { duration: 1700, easing: 'ease-in-out' }))) return;
+  if (!await go(play(catHead, [{ transform: 'none' }, { transform: DIP }], { duration: 500, easing: 'ease-in-out' }))) return;
+
+  const lapTimer = setInterval(() => { if (t === catToken) ripple(); }, 430);
+  const done = await go(play(catHead, [{ transform: DIP }, { transform: LAP }, { transform: DIP }],
+    { duration: 430, iterations: 6, easing: 'ease-in-out' }));
+  clearInterval(lapTimer);
+  if (!done) return;
+
+  if (!await go(play(catHead, [{ transform: DIP }, { transform: 'none' }], { duration: 450, easing: 'ease-out' }))) return;
+  play(catEars, rot(0, -9, 7, -7, 0), { duration: 450 });
+  await Promise.resolve();
+  if (!await go(play(catHead, rot(0, 6, -5, 4, 0), { duration: 600 }))) return;       // jilat bibir / puas
+  if (!await go(play(catAwake, walkFrames(WALK.dx, WALK.dy, 0, 0, 3, 7), { duration: 1300, easing: 'ease-in-out' }))) return;
+  play(catTail, rot(0, -30, 24, -26, 20, -12, 0), { duration: 1200, easing: 'ease-in-out' });
+  if (!await go(Promise.resolve(true).then(() => new Promise((r) => setTimeout(() => r(true), 900))))) return;
+  catAbort();
+}
+
+async function groom(kind) {
+  const t = catStart('groom');
+  const go = async (p) => (await p) && t === catToken;
+  play(catEyes, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(.12)' }], { duration: 220 });
+
+  if (kind === 'face') {
+    const UP = 'translate(-6px, -21px)', MID = 'translate(-1px, -15px)';
+    if (!await go(play(catPaw, [{ transform: 'none' }, { transform: UP }], { duration: 400, easing: 'ease-out' }))) return;
+    play(catHead, [{ transform: 'none' }, { transform: 'rotate(5deg) translate(1px, 3px)' }], { duration: 300 });
+    bubbles(6);
+    if (!await go(play(catPaw, [{ transform: UP }, { transform: MID }, { transform: UP }], { duration: 420, iterations: 5 }))) return;
+    play(catHead, [{ transform: 'rotate(5deg) translate(1px, 3px)' }, { transform: 'none' }], { duration: 300 });
+    if (!await go(play(catPaw, [{ transform: UP }, { transform: 'none' }], { duration: 380, easing: 'ease-in' }))) return;
+  } else {
+    const A = 'translate(4px, 14px) rotate(20deg)', B = 'translate(4px, 17px) rotate(25deg)';
+    if (!await go(play(catHead, [{ transform: 'none' }, { transform: A }], { duration: 500, easing: 'ease-in-out' }))) return;
+    bubbles(5);
+    if (!await go(play(catHead, [{ transform: A }, { transform: B }, { transform: A }], { duration: 380, iterations: 6, easing: 'ease-in-out' }))) return;
+    if (!await go(play(catHead, [{ transform: A }, { transform: 'none' }], { duration: 450, easing: 'ease-out' }))) return;
+  }
+  play(catEyes, [{ transform: 'scaleY(.12)' }, { transform: 'scaleY(1)' }], { duration: 200 });
+  if (!await go(play(catHead, rot(0, -4, 4, 0), { duration: 450 }))) return;        // geleng kecil: "udah bersih"
+  catAbort();
+}
+
+function idleTick() {
+  clearTimeout(idleT);
+  idleT = setTimeout(() => {
+    const free = !catBusy && !document.hidden && !reduceMotion && !pcOpen && !stickyOpen && !artOpen && !inside.classList.contains('night');
+    if (free) {
+      const r = Math.random();
+      if (r < .6) groom(Math.random() < .5 ? 'face' : 'chest');
+      else (Math.random() < .5 ? moves.tail : moves.ears)();
+    }
+    idleTick();
+  }, 2500 + Math.random() * 3500);
+}
+if (!reduceMotion) { idleTick(); setTimeout(() => { if (!catBusy && !inside.classList.contains('night')) groom('face'); }, 2500); }
