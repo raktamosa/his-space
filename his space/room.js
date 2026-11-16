@@ -718,7 +718,7 @@ lockForm.addEventListener('submit', (e) => {
 lockInput.addEventListener('input', () => { lockMsg.textContent = ''; });
 
 
-const LOCK_AVATAR = 'picture/jeno 1.jfif';
+const LOCK_AVATAR = 'picture/vlad 9.jfif';
 const lockAvatar = document.querySelector('.lock-avatar');
 const lockAvatarImg = document.getElementById('lock-avatar-img');
 lockAvatarImg.addEventListener('load', () => { lockAvatarImg.hidden = false; lockAvatar.classList.add('has-photo'); });
@@ -867,7 +867,7 @@ function idleTick() {
 if (!reduceMotion) { idleTick(); setTimeout(() => { if (!catBusy && !inside.classList.contains('night')) groom('face'); }, 2500); }
 
 
-/* ---- dialog pembuka "me" ---- */
+
 const ROOM_LINES = [
   'kamar nya deputi bagus banget, dia lagi muter lagu kesukaan kita ya?',
   'tapi aku atur volume lagu nya di komputer dia ah',
@@ -938,7 +938,6 @@ function showDialog(lines) {
   showQuest();
 })();
 
-/* ---- quest: hilang begitu volume musik disentuh ---- */
 function showQuest() {
   const q = document.getElementById('quest');
   const audio = document.getElementById('bgm');

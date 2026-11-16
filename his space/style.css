@@ -812,13 +812,11 @@ html.arriving .flash { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .eq i { animation: none; transform: scaleY(.6); } }
 
 
-/* ---- jam dinding menyala saat malam ---- */
 .clock-glow-layer { mix-blend-mode: screen; }
 .clock-halo { animation: clock-pulse 6s ease-in-out infinite; }
 @keyframes clock-pulse { 0%, 100% { opacity: .82; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .clock-halo { animation: none; } }
 
-/* ---- popup Roblox di dalam layar PC ---- */
 .msg-ov { position: absolute; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(8, 12, 26, .35); }
 .msg-ov[hidden] { display: none; }
 .msg-box {
@@ -1017,7 +1015,7 @@ g.win { --amp: 1.8; pointer-events: none; }
 }
 .doorfront.ready .fd-hint { opacity: .9; }
 
-/* ---- dialog "me" di kamar (warna biru, beda dari dialog udeputi) ---- */
+/*warna dialog jemina*/
 .dialog.me .dlg-name {
   color: #fff;
   background: linear-gradient(180deg, #4a6fc4, #2f4f96);
@@ -1032,7 +1030,6 @@ g.win { --amp: 1.8; pointer-events: none; }
 .dialog.me .dlg-text { color: #1b2845; }
 .dialog.me .dlg-next { color: #2f4f96; }
 
-/* ---- pop up quest kanan atas ---- */
 .quest {
   position: fixed; top: 18px; right: 18px; z-index: 9;
   width: min(250px, calc(100vw - 36px));
@@ -1059,7 +1056,7 @@ body:has(.pc.open) .quest { top: 72px; }
 @media (max-width: 640px) { body:has(.pc.open) .quest { z-index: 7; } }
 @media (prefers-reduced-motion: reduce) { .quest { transition: none; } }
 
-/* ---- nama "ogy" melayang di atas kepala kucing ---- */
+/*nama ogy*/
 .cat-name { animation: name-bob 2.6s ease-in-out infinite; }
 @keyframes name-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .cat-name { animation: none; } }
