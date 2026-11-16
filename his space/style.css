@@ -837,3 +837,9 @@ html.arriving .flash { opacity: 1; }
 }
 .msg-ok:hover { background: #c8dcf9; }
 .msg-ok:focus-visible { outline: 3px solid #1b2845; outline-offset: 2px; }
+
+#scene.zooming .clouds,
+#scene.zooming .wind,
+#scene.zooming #leaves,
+#scene.zooming .smoke { display: none; }
+#scene.zooming * { animation-play-state: paused !important; }

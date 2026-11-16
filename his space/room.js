@@ -16,8 +16,6 @@ function tickClock() {
   const mm = String(d.getMinutes()).padStart(2, '0');
   clockH.textContent = hh;
   clockM.textContent = mm;
-  document.querySelectorAll('.clock-h-mirror').forEach((n) => { n.textContent = hh; });
-  document.querySelectorAll('.clock-m-mirror').forEach((n) => { n.textContent = mm; });
   pcTime.textContent = `${hh}:${mm}`;
   pcDate.textContent = d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
@@ -255,37 +253,12 @@ for (const a in wins) {
   });
 }
 
-const msgOv = document.getElementById('msg-roblox');
-const msgOk = document.getElementById('msg-roblox-ok');
-let msgOpen = false;
-function openMsg() {
-  closeStart();
-  msgOpen = true;
-  msgOv.hidden = false;
-  const box = msgOv.querySelector('.msg-box');
-  box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
-  msgOk.focus({ preventScroll: true });
-}
-function closeMsg() {
-  if (!msgOpen) return;
-  msgOpen = false;
-  msgOv.hidden = true;
-  pcScreen.focus({ preventScroll: true });
-}
-function openItem(el) {
-  if (el.dataset.pop === 'roblox') openMsg();
-  else openWin(el.dataset.app);
-}
-msgOk.addEventListener('click', closeMsg);
-document.getElementById('msg-roblox-x').addEventListener('click', closeMsg);
-msgOv.addEventListener('click', (e) => { if (e.target === msgOv) closeMsg(); });
-
 deskIcons.forEach((ic) => {
   ic.addEventListener('click', (e) => {
-    if (e.detail === 0 || isCoarse()) { openItem(ic); return; }
+    if (e.detail === 0 || isCoarse()) { openWin(ic.dataset.app); return; }
     deskIcons.forEach((o) => o.classList.toggle('sel', o === ic));
   });
-  ic.addEventListener('dblclick', () => openItem(ic));
+  ic.addEventListener('dblclick', () => openWin(ic.dataset.app));
 });
 pcScreen.addEventListener('click', (e) => {
   if (!e.target.closest('.desk-icon')) deskIcons.forEach((o) => o.classList.remove('sel'));
@@ -303,7 +276,7 @@ tbStart.addEventListener('click', () => {
   startMenu.hidden = !show;
   tbStart.setAttribute('aria-expanded', String(show));
 });
-startMenu.querySelectorAll('.sm-item').forEach((b) => b.addEventListener('click', () => openItem(b)));
+startMenu.querySelectorAll('.sm-item').forEach((b) => b.addEventListener('click', () => openWin(b.dataset.app)));
 
 
 const stageEl = document.getElementById('viewer-stage');
@@ -338,7 +311,6 @@ function closePC(fromPop) {
   pcOpen = false;
   if (pcPushed) { pcPushed = false; if (fromPop !== true) history.back(); }
   closeStart();
-  closeMsg();
   closeVol();
   pc.classList.remove('open');
   document.getElementById('page2').inert = false;
@@ -357,7 +329,7 @@ document.getElementById('tb-power').addEventListener('click', closePC);
 pc.addEventListener('click', (e) => { if (e.target === pc) closePC(); });
 document.addEventListener('keydown', (e) => {
   if (!pcOpen) return;
-  if (e.key === 'Escape') { if (msgOpen) closeMsg(); else if (!startMenu.hidden) closeStart(); else if (volIsOpen()) closeVol(); else closePC(); }
+  if (e.key === 'Escape') { if (!startMenu.hidden) closeStart(); else if (volIsOpen()) closeVol(); else closePC(); }
   else if (activeApp === 'viewer' && winVisible('viewer') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     showPhoto(viewerIdx + (e.key === 'ArrowRight' ? 1 : -1));
   }
@@ -467,10 +439,10 @@ let volIsOpen = () => false;
   let mIdx = 0;
   let mRepeat = 'all';
   let mShuffle = false;
-  let mWant = true;                 // false kalau pengguna sengaja menekan jeda
+  let mWant = true;                 // biar pause
   let mErr = false, seeking = false, armed = false;
   const volAttr = parseFloat(byId('songs').dataset.volume);
-  bgm.volume = Math.min(Math.max(isFinite(volAttr) ? volAttr : 2, 0), 100) / 100;
+  bgm.volume = Math.min(Math.max(isFinite(volAttr) ? volAttr : 5, 0), 100) / 100;
   bgm.muted = false;
 
   const fmt = (s) => {
@@ -655,15 +627,20 @@ let volIsOpen = () => false;
   function armGesture() {
     if (armed) return;
     armed = true;
-    const evs = ['click', 'keydown', 'touchend'];
+    const evs = ['pointerup', 'touchend', 'click', 'keydown'];
     const off = () => { evs.forEach((e) => document.removeEventListener(e, go, true)); armed = false; };
-    const go = () => setTimeout(() => {
+    const go = () => {
       if (!mWant || !bgm.paused) { off(); return; }
       const p = bgm.play();
       if (p && p.then) p.then(off, () => {});
-    }, 0);
+    };
     evs.forEach((e) => document.addEventListener(e, go, true));
   }
+  window.kickMusic = () => {
+    if (!TRACKS.length || !mWant || !bgm.paused) return;
+    const p = bgm.play();
+    if (p && p.catch) p.catch(() => {});
+  };
   if (TRACKS.length) {
     loadTrack(mIdx);
     startPlay();
@@ -695,6 +672,7 @@ setInterval(tickLock, 1000);
 lockForm.addEventListener('submit', (e) => {
   e.preventDefault();
   if (lockInput.value === PC_PASSWORD) {
+    if (window.kickMusic) window.kickMusic();
     pcLocked = false;
     lockMsg.textContent = '';
     lockEl.classList.add('unlocking');

@@ -76,7 +76,7 @@ const leafLayer = document.getElementById('leaves');
 const leafColors = ['#d9a050', '#c98b43', '#e0b062', '#b8c47a'];
 
 function spawnLeaf() {
-  if (reduceMotion) return;
+  if (reduceMotion || busy) return;
 
   const leaf = el('ellipse', {
     rx: 4.5,
@@ -163,6 +163,7 @@ async function openDoor(e) {
     await sleep(300);
   } else {
     await sleep(500);                            
+    sceneSvg.classList.add('zooming');
     const zoom = zoomToDoor(2800);               
     await sleep(1700);
 
@@ -178,7 +179,7 @@ async function openDoor(e) {
 window.addEventListener('pageshow', (e) => {
   if (!e.persisted) return;
   if (camAnim) camAnim.cancel();
-  sceneSvg.classList.remove('is-open');
+  sceneSvg.classList.remove('is-open', 'zooming');
   flash.style.transition = 'none';
   flash.style.opacity = 0;
   hint.classList.remove('gone');
@@ -214,6 +215,7 @@ async function arriveFromRoom() {
     await sleep(300);
     sceneSvg.classList.remove('no-anim', 'is-open');
   } else {
+    sceneSvg.classList.add('zooming');
     const zoom = zoomToDoor(2800, true);           
     await sleep(150);
     flash.style.transition = 'opacity 1.8s ease-out';
@@ -222,6 +224,7 @@ async function arriveFromRoom() {
     sceneSvg.classList.remove('no-anim', 'is-open'); 
     await zoom;
     if (camAnim) camAnim.cancel();
+    sceneSvg.classList.remove('zooming');
   }
 
   hint.classList.remove('gone');
