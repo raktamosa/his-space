@@ -212,8 +212,9 @@ body {
 .hotspot:focus-visible .hs-dot { transform: scale(1.2); }
 
 .tip { opacity: 0; transition: opacity .2s ease; }
-.hotspot:hover .tip,
-.hotspot:focus .tip { opacity: 1; }
+@media (hover: hover) { .hotspot:hover .tip { opacity: 1; } }
+.hotspot:focus-visible .tip,
+.hotspot:active .tip { opacity: 1; }
 
 .scene.back-in { animation: page-in 1s ease-out; }
 
@@ -1015,7 +1016,6 @@ g.win { --amp: 1.8; pointer-events: none; }
 }
 .doorfront.ready .fd-hint { opacity: .9; }
 
-/*warna dialog jemina*/
 .dialog.me .dlg-name {
   color: #fff;
   background: linear-gradient(180deg, #4a6fc4, #2f4f96);
@@ -1056,7 +1056,12 @@ body:has(.pc.open) .quest { top: 72px; }
 @media (max-width: 640px) { body:has(.pc.open) .quest { z-index: 7; } }
 @media (prefers-reduced-motion: reduce) { .quest { transition: none; } }
 
-/*nama ogy*/
 .cat-name { animation: name-bob 2.6s ease-in-out infinite; }
 @keyframes name-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .cat-name { animation: none; } }
+
+.win-sash { animation: win-open 4.5s cubic-bezier(.45, .05, .25, 1) 1.2s both; }
+@keyframes win-open {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(.12); }
+}

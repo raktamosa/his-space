@@ -1,3 +1,29 @@
+(function () {
+  function fitTip(tip) {
+    const text = tip.querySelector('text');
+    const rect = tip.querySelector('rect');
+    if (!text || !rect) return false;
+    let box;
+    try { box = text.getBBox(); } catch (e) { return false; }
+    if (!box.width) return false;
+    const w = Math.round(box.width + 32);
+    rect.setAttribute('width', w);
+    rect.setAttribute('x', -w / 2);
+    return true;
+  }
+  function fitAllTips() {
+    document.querySelectorAll('.hotspot .tip').forEach(fitTip);
+  }
+  fitAllTips();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAllTips);
+  window.addEventListener('load', fitAllTips);
+  document.querySelectorAll('.hotspot').forEach((h) => {
+    const tip = h.querySelector('.tip');
+    if (!tip) return;
+    ['pointerenter', 'focus', 'pointerdown'].forEach((ev) => h.addEventListener(ev, () => fitTip(tip)));
+  });
+})();
+
 const flash = document.getElementById('flash');
 requestAnimationFrame(() => requestAnimationFrame(() => {
   flash.style.transition = 'opacity 1.4s ease-out';
@@ -366,8 +392,8 @@ document.addEventListener('keydown', (e) => {
 updateTb();
 
 
-const stickySpot = document.querySelector('.hotspot[aria-label="Catatan tempel"]');
-const stickyPaper = document.querySelector('.hotspot[aria-label="Catatan tempel"]').closest('svg')
+const stickySpot = document.querySelector('.hotspot[aria-label="catatan"]');
+const stickyPaper = document.querySelector('.hotspot[aria-label="catatan"]').closest('svg')
   .querySelector('g[transform="matrix(1,-0.553,0,1,505.0,298.7)"]');
 const stickyOv = document.getElementById('sticky');
 const stickyNote = document.getElementById('sticky-note');
