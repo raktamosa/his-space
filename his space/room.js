@@ -392,8 +392,8 @@ document.addEventListener('keydown', (e) => {
 updateTb();
 
 
-const stickySpot = document.querySelector('.hotspot[aria-label="catatan"]');
-const stickyPaper = document.querySelector('.hotspot[aria-label="catatan"]').closest('svg')
+const stickySpot = document.querySelector('.hotspot[aria-label="Catatan" i]');
+const stickyPaper = document.querySelector('.hotspot[aria-label="Catatan" i]').closest('svg')
   .querySelector('g[transform="matrix(1,-0.553,0,1,505.0,298.7)"]');
 const stickyOv = document.getElementById('sticky');
 const stickyNote = document.getElementById('sticky-note');
@@ -894,6 +894,78 @@ if (!reduceMotion) { idleTick(); setTimeout(() => { if (!catBusy && !inside.clas
 
 
 
+const DLG_SOUND = 'pop';
+
+const dlgBlip = (() => {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ctx = null, noise = null, n = 0;
+  const wake = () => {
+    if (!AC) return;
+    if (!ctx) {
+      ctx = new AC();
+      noise = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1;
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+  };
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, wake, { passive: true }));
+
+  const env = (g, t, peak, attack, end) => {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + end);
+  };
+
+  const styles = {
+    pop(t, base) {
+      const f = base * 1.5 * (0.94 + Math.random() * 0.12);
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f * 0.7, t);
+      o.frequency.exponentialRampToValueAtTime(f * 1.15, t + 0.03);
+      env(g, t, 0.1, 0.004, 0.08);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + 0.1);
+    },
+    tap(t, base) {
+      const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = noise;
+      bp.type = 'bandpass';
+      bp.frequency.value = 700 + Math.random() * 300;
+      bp.Q.value = 3;
+      env(g, t, 0.35, 0.002, 0.04);
+      src.connect(bp).connect(g).connect(ctx.destination);
+      src.start(t); src.stop(t + 0.05);
+      const o = ctx.createOscillator(), g2 = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(base * 0.8, t);
+      env(g2, t, 0.06, 0.003, 0.05);
+      o.connect(g2).connect(ctx.destination);
+      o.start(t); o.stop(t + 0.06);
+    },
+    chime(t, base) {
+      const f = base * 2 * (n % 2 ? 1 : 1.25);
+      [[1, 0.06], [3, 0.012]].forEach(([m, v]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = f * m;
+        env(g, t, v, 0.004, 0.12);
+        o.connect(g).connect(ctx.destination);
+        o.start(t); o.stop(t + 0.14);
+      });
+    }
+  };
+
+  return function (ch, base) {
+    if (!ch || /[\s.,!?]/.test(ch)) return;
+    if ((n++ % 3) !== 0) return;
+    wake();
+    if (!ctx || ctx.state !== 'running') return;
+    (styles[DLG_SOUND] || styles.pop)(ctx.currentTime, base);
+  };
+})();
+
 const ROOM_LINES = [
   'kamar nya deputi bagus banget, dia lagi muter lagu kesukaan kita ya?',
   'tapi aku atur volume lagu nya di komputer dia ah',
@@ -928,6 +1000,7 @@ function showDialog(lines) {
       dlgTimer = setInterval(() => {
         pos++;
         paint();
+        dlgBlip(lines[i][pos - 1], 262);
         if (pos >= lines[i].length) finishLine();
       }, 34);
     };

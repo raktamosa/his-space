@@ -134,8 +134,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
 function zoomRange(duration, pFrom, pTo) {
+  const k = (sceneSvg.clientWidth || sceneSvg.getBoundingClientRect().width) / 800;
   const frames = [];
-  const steps = 30;
+  const steps = 72;
   for (let i = 0; i <= steps; i++) {
     const u = i / steps;
     const p = pFrom + (pTo - pFrom) * easeInOut(u);
@@ -144,11 +145,11 @@ function zoomRange(duration, pFrom, pTo) {
     const py = DOOR.y + (CENTER.y - DOOR.y) * p;
     frames.push({
       offset: u,
-      transform: `translate(${px - s * DOOR.x}px, ${py - s * DOOR.y}px) scale(${s})`
+      transform: `translate3d(${(px - s * DOOR.x) * k}px, ${(py - s * DOOR.y) * k}px, 0) scale(${s})`
     });
   }
   const prev = camAnim;
-  camAnim = camera.animate(frames, { duration, easing: 'linear', fill: 'forwards' });
+  camAnim = sceneSvg.animate(frames, { duration, easing: 'linear', fill: 'forwards' });
   if (prev) prev.cancel();
   return camAnim.finished;
 }
@@ -156,6 +157,78 @@ function zoomRange(duration, pFrom, pTo) {
 function zoomToDoor(duration, reverse = false) {
   return reverse ? zoomRange(duration, 1, 0) : zoomRange(duration, 0, 1);
 }
+
+const DLG_SOUND = 'pop';
+
+const dlgBlip = (() => {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ctx = null, noise = null, n = 0;
+  const wake = () => {
+    if (!AC) return;
+    if (!ctx) {
+      ctx = new AC();
+      noise = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1;
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+  };
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, wake, { passive: true }));
+
+  const env = (g, t, peak, attack, end) => {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + end);
+  };
+
+  const styles = {
+    pop(t, base) {
+      const f = base * 1.5 * (0.94 + Math.random() * 0.12);
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f * 0.7, t);
+      o.frequency.exponentialRampToValueAtTime(f * 1.15, t + 0.03);
+      env(g, t, 0.1, 0.004, 0.08);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + 0.1);
+    },
+    tap(t, base) {
+      const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = noise;
+      bp.type = 'bandpass';
+      bp.frequency.value = 700 + Math.random() * 300;
+      bp.Q.value = 3;
+      env(g, t, 0.35, 0.002, 0.04);
+      src.connect(bp).connect(g).connect(ctx.destination);
+      src.start(t); src.stop(t + 0.05);
+      const o = ctx.createOscillator(), g2 = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(base * 0.8, t);
+      env(g2, t, 0.06, 0.003, 0.05);
+      o.connect(g2).connect(ctx.destination);
+      o.start(t); o.stop(t + 0.06);
+    },
+    chime(t, base) {
+      const f = base * 2 * (n % 2 ? 1 : 1.25);
+      [[1, 0.06], [3, 0.012]].forEach(([m, v]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = f * m;
+        env(g, t, v, 0.004, 0.12);
+        o.connect(g).connect(ctx.destination);
+        o.start(t); o.stop(t + 0.14);
+      });
+    }
+  };
+
+  return function (ch, base) {
+    if (!ch || /[\s.,!?]/.test(ch)) return;
+    if ((n++ % 3) !== 0) return;
+    wake();
+    if (!ctx || ctx.state !== 'running') return;
+    (styles[DLG_SOUND] || styles.pop)(ctx.currentTime, base);
+  };
+})();
 
 const dialog   = document.getElementById('dialog');
 const dlgTyped = document.getElementById('dlg-typed');
@@ -188,6 +261,7 @@ function showDialog(lines) {
       dlgTimer = setInterval(() => {
         pos++;
         paint();
+        dlgBlip(lines[i][pos - 1], 330);
         if (pos >= lines[i].length) finishLine();
       }, 34);
     };

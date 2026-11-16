@@ -81,11 +81,14 @@ body {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  transition: opacity 1.2s ease-out, transform 2.6s ease-in;
+  transform: scale(2.6);
+  transition: opacity 1.2s ease-out;
 }
-#scene.is-open .door-burst { opacity: 1; transform: scale(2.6); }
+#scene.is-open .door-burst { opacity: 1; }
 
 #camera { transform-origin: 0 0; }
+
+#scene.zooming { transform-origin: 0 0; will-change: transform; }
 
 .flash {
   position: fixed;
