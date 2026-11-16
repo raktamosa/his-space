@@ -16,6 +16,8 @@ function tickClock() {
   const mm = String(d.getMinutes()).padStart(2, '0');
   clockH.textContent = hh;
   clockM.textContent = mm;
+  document.querySelectorAll('.clock-h-mirror').forEach((n) => { n.textContent = hh; });
+  document.querySelectorAll('.clock-m-mirror').forEach((n) => { n.textContent = mm; });
   pcTime.textContent = `${hh}:${mm}`;
   pcDate.textContent = d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
@@ -184,6 +186,8 @@ const wins = {
   files: document.getElementById('win-files'),
   notes: document.getElementById('win-notes'),
   viewer: document.getElementById('win-viewer'),
+  music: document.getElementById('win-music'),
+  player: document.getElementById('win-player'),
 };
 const tbBtns = [...document.querySelectorAll('.tb-btn[data-app]')];
 const deskIcons = [...document.querySelectorAll('.desk-icon')];
@@ -201,7 +205,7 @@ function topVisible() {
 function updateTb() {
   tbBtns.forEach((b) => {
     const a = b.dataset.app;
-    if (a === 'viewer') b.hidden = wins.viewer.hidden;
+    if (a === 'viewer' || a === 'player') b.hidden = wins[a].hidden;
     b.classList.toggle('running', !wins[a].hidden);
     b.classList.toggle('active', a === activeApp && winVisible(a));
   });
@@ -251,12 +255,37 @@ for (const a in wins) {
   });
 }
 
+const msgOv = document.getElementById('msg-roblox');
+const msgOk = document.getElementById('msg-roblox-ok');
+let msgOpen = false;
+function openMsg() {
+  closeStart();
+  msgOpen = true;
+  msgOv.hidden = false;
+  const box = msgOv.querySelector('.msg-box');
+  box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
+  msgOk.focus({ preventScroll: true });
+}
+function closeMsg() {
+  if (!msgOpen) return;
+  msgOpen = false;
+  msgOv.hidden = true;
+  pcScreen.focus({ preventScroll: true });
+}
+function openItem(el) {
+  if (el.dataset.pop === 'roblox') openMsg();
+  else openWin(el.dataset.app);
+}
+msgOk.addEventListener('click', closeMsg);
+document.getElementById('msg-roblox-x').addEventListener('click', closeMsg);
+msgOv.addEventListener('click', (e) => { if (e.target === msgOv) closeMsg(); });
+
 deskIcons.forEach((ic) => {
   ic.addEventListener('click', (e) => {
-    if (e.detail === 0 || isCoarse()) { openWin(ic.dataset.app); return; }
+    if (e.detail === 0 || isCoarse()) { openItem(ic); return; }
     deskIcons.forEach((o) => o.classList.toggle('sel', o === ic));
   });
-  ic.addEventListener('dblclick', () => openWin(ic.dataset.app));
+  ic.addEventListener('dblclick', () => openItem(ic));
 });
 pcScreen.addEventListener('click', (e) => {
   if (!e.target.closest('.desk-icon')) deskIcons.forEach((o) => o.classList.remove('sel'));
@@ -274,7 +303,7 @@ tbStart.addEventListener('click', () => {
   startMenu.hidden = !show;
   tbStart.setAttribute('aria-expanded', String(show));
 });
-startMenu.querySelectorAll('.sm-item').forEach((b) => b.addEventListener('click', () => openWin(b.dataset.app)));
+startMenu.querySelectorAll('.sm-item').forEach((b) => b.addEventListener('click', () => openItem(b)));
 
 
 const stageEl = document.getElementById('viewer-stage');
@@ -309,6 +338,8 @@ function closePC(fromPop) {
   pcOpen = false;
   if (pcPushed) { pcPushed = false; if (fromPop !== true) history.back(); }
   closeStart();
+  closeMsg();
+  closeVol();
   pc.classList.remove('open');
   document.getElementById('page2').inert = false;
   setTimeout(() => { if (!pcOpen) pc.hidden = true; }, reduceMotion ? 0 : 380);
@@ -326,7 +357,7 @@ document.getElementById('tb-power').addEventListener('click', closePC);
 pc.addEventListener('click', (e) => { if (e.target === pc) closePC(); });
 document.addEventListener('keydown', (e) => {
   if (!pcOpen) return;
-  if (e.key === 'Escape') { if (!startMenu.hidden) closeStart(); else closePC(); }
+  if (e.key === 'Escape') { if (msgOpen) closeMsg(); else if (!startMenu.hidden) closeStart(); else if (volIsOpen()) closeVol(); else closePC(); }
   else if (activeApp === 'viewer' && winVisible('viewer') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     showPhoto(viewerIdx + (e.key === 'ArrowRight' ? 1 : -1));
   }
@@ -368,6 +399,7 @@ stickyOv.addEventListener('click', (e) => { if (e.target === stickyOv) closeStic
 document.addEventListener('keydown', (e) => { if (stickyOpen && e.key === 'Escape') closeSticky(); });
 
 
+
 const artOv = document.getElementById('art');
 const artCard = document.getElementById('art-card');
 const artBody = document.getElementById('art-body');
@@ -378,7 +410,7 @@ function openArt(n, spot) {
   if (!tpl) return;
   artBody.replaceChildren(tpl.content.cloneNode(true));
   artSpot = spot || null;
-  artCard.dataset.art = n;                              // warna bingkai ikut bingkai di dinding
+  artCard.dataset.art = n;                              
   artOpen = true;
   artOv.hidden = false;
   inside.inert = true;
@@ -410,7 +442,240 @@ artOv.addEventListener('click', (e) => { if (e.target === artOv) closeArt(); });
 document.addEventListener('keydown', (e) => { if (artOpen && e.key === 'Escape') closeArt(); });
 
 
-const PC_PASSWORD = '467558';   
+
+let closeVol = () => {};           
+let volIsOpen = () => false;
+(() => {
+  const byId = (id) => document.getElementById(id);
+  const bgm = byId('bgm');
+  const songEls = [...byId('songs').querySelectorAll('.song')];
+  const TRACKS = songEls.map((el) => ({
+    src: el.dataset.src || '', title: el.dataset.title || 'Tanpa judul',
+    artist: el.dataset.artist || '', cover: el.dataset.cover || '',
+  }));
+  const plName = byId('pl-name'), plArtist = byId('pl-artist'), plMsg = byId('pl-msg');
+  const plCur = byId('pl-cur'), plDur = byId('pl-dur'), plSeek = byId('pl-seek');
+  const plPlay = byId('pl-play'), plPrev = byId('pl-prev'), plNext = byId('pl-next');
+  const plShuffle = byId('pl-shuffle'), plRepeat = byId('pl-repeat');
+  const plMute = byId('pl-mute'), plVol = byId('pl-vol'), plVolVal = byId('pl-volval');
+  const plCoverImg = byId('pl-cover-img'), vfCoverImg = byId('vf-cover-img');
+  const tbVol = byId('tb-vol'), volFly = byId('vol-fly');
+  const vfNow = byId('vf-now'), vfName = byId('vf-name'), vfArtist = byId('vf-artist');
+  const vfPlay = byId('vf-play'), vfPrev = byId('vf-prev'), vfNext = byId('vf-next');
+  const vfMute = byId('vf-mute'), vfVol = byId('vf-vol');
+
+  let mIdx = 0;
+  let mRepeat = 'all';
+  let mShuffle = false;
+  let mWant = true;                 // false kalau pengguna sengaja menekan jeda
+  let mErr = false, seeking = false, armed = false;
+  const volAttr = parseFloat(byId('songs').dataset.volume);
+  bgm.volume = Math.min(Math.max(isFinite(volAttr) ? volAttr : 2, 0), 100) / 100;
+  bgm.muted = false;
+
+  const fmt = (s) => {
+    if (!isFinite(s) || s < 0) s = 0;
+    return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  };
+  const setIcon = (btn, id) => btn.querySelector('use').setAttribute('href', '#' + id);
+  const setFill = (r) => r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min) * 100) + '%');
+
+  songEls.forEach((el, i) => {
+    const t = TRACKS[i];
+    el.innerHTML = '<span class="song-ico"><svg><use href="#ic-music"/></svg><span class="eq"><i></i><i></i><i></i></span></span>' +
+      '<span class="song-meta"><b class="song-title"></b><i class="song-artist"></i></span><span class="song-dur">&ndash;:&ndash;&ndash;</span>';
+    el.querySelector('.song-title').textContent = t.title;
+    el.querySelector('.song-artist').textContent = t.artist;
+    if (t.cover) {
+      const im = new Image();
+      im.alt = '';
+      im.onload = () => el.querySelector('.song-ico').prepend(im);
+      im.src = t.cover;
+    }
+    el.addEventListener('click', () => selectSong(i));
+
+    const durEl = el.querySelector('.song-dur');                    
+    if (!t.src) { durEl.textContent = '–'; return; }
+    const probe = new Audio();
+    probe.preload = 'metadata';
+    probe.addEventListener('loadedmetadata', () => { durEl.textContent = isFinite(probe.duration) ? fmt(probe.duration) : '–'; });
+    probe.addEventListener('error', () => { durEl.textContent = 'file tidak ada'; el.classList.add('missing'); });
+    probe.src = t.src;
+  });
+  byId('music-status').textContent = `${TRACKS.length} lagu`;
+
+  function renderMusic() {
+    const t = TRACKS[mIdx] || { title: 'Belum ada lagu', artist: '', cover: '' };
+    const playing = !bgm.paused && !bgm.ended && !mErr;
+    plName.textContent = vfName.textContent = t.title;
+    plArtist.textContent = vfArtist.textContent = t.artist;
+    [plCoverImg, vfCoverImg].forEach((im) => {
+      if (!t.cover) { im.hidden = true; im.removeAttribute('src'); }
+      else if (im.getAttribute('src') !== t.cover) { im.hidden = true; im.src = t.cover; }
+    });
+    [plPlay, vfPlay].forEach((b) => {
+      setIcon(b, playing ? 'ic-pause' : 'ic-play');
+      b.setAttribute('aria-label', playing ? 'Jeda' : 'Putar');
+    });
+    const off = bgm.muted || bgm.volume === 0;
+    [tbVol, plMute, vfMute].forEach((b) => setIcon(b, off ? 'ic-vol-off' : 'ic-vol'));
+    [plMute, vfMute].forEach((b) => b.setAttribute('aria-label', off ? 'Suarakan' : 'Bisukan'));
+    const v = Math.round(bgm.volume * 100);
+    [plVol, vfVol].forEach((r) => { r.value = v; setFill(r); });
+    plVolVal.textContent = bgm.muted ? 'Mute' : v + '%';
+    plShuffle.classList.toggle('on', mShuffle);
+    plShuffle.setAttribute('aria-pressed', String(mShuffle));
+    setIcon(plRepeat, mRepeat === 'one' ? 'ic-repeat1' : 'ic-repeat');
+    plRepeat.classList.toggle('on', mRepeat !== 'off');
+    const rl = { all: 'Ulangi semua', one: 'Ulangi satu lagu', off: 'Ulangi mati' }[mRepeat];
+    plRepeat.setAttribute('aria-label', rl); plRepeat.title = rl;
+    songEls.forEach((el, i) => {
+      el.classList.toggle('playing', i === mIdx);
+      el.classList.toggle('live', i === mIdx && playing);
+    });
+  }
+  function renderTime() {
+    const d = bgm.duration, c = bgm.currentTime || 0;
+    plCur.textContent = fmt(c);
+    plDur.textContent = isFinite(d) ? fmt(d) : '0:00';
+    plSeek.disabled = !isFinite(d);
+    if (!seeking) { plSeek.value = isFinite(d) && d > 0 ? Math.round(c / d * 1000) : 0; setFill(plSeek); }
+  }
+
+  function startPlay() {
+    if (!TRACKS.length || !bgm.src) return;
+    const p = bgm.play();
+    if (p && p.catch) p.catch((err) => { if (err && err.name === 'NotAllowedError') armGesture(); });
+  }
+  function loadTrack(i) {
+    if (!TRACKS.length) return;
+    mIdx = (i + TRACKS.length) % TRACKS.length;
+    mErr = false;
+    plMsg.textContent = '';
+    if (TRACKS[mIdx].src) bgm.src = TRACKS[mIdx].src;
+    renderMusic(); renderTime(); updateMediaSession();
+  }
+  function toggleMusic() {
+    if (bgm.paused || bgm.ended) { mWant = true; if (mErr) loadTrack(mIdx); startPlay(); }
+    else { mWant = false; bgm.pause(); }
+  }
+  function pickNext() {
+    const n = TRACKS.length;
+    if (n < 2) return mIdx;
+    if (mShuffle) { let k; do { k = Math.floor(Math.random() * n); } while (k === mIdx); return k; }
+    return (mIdx + 1) % n;
+  }
+  function nextTrack() { mWant = true; loadTrack(pickNext()); startPlay(); }
+  function prevTrack() {
+    if (bgm.currentTime > 3) { bgm.currentTime = 0; return; }
+    mWant = true; loadTrack(mIdx - 1); startPlay();
+  }
+  function selectSong(i) {                       
+    mWant = true;
+    if (i !== mIdx || mErr) loadTrack(i);
+    if (bgm.paused) startPlay();
+    openWin('player');
+  }
+
+  plPlay.addEventListener('click', toggleMusic);
+  vfPlay.addEventListener('click', toggleMusic);
+  plPrev.addEventListener('click', prevTrack);
+  vfPrev.addEventListener('click', prevTrack);
+  plNext.addEventListener('click', nextTrack);
+  vfNext.addEventListener('click', nextTrack);
+  plShuffle.addEventListener('click', () => { mShuffle = !mShuffle; renderMusic(); });
+  plRepeat.addEventListener('click', () => {
+    mRepeat = { all: 'one', one: 'off', off: 'all' }[mRepeat];
+    renderMusic();
+  });
+  [plMute, vfMute].forEach((b) => b.addEventListener('click', () => { bgm.muted = !bgm.muted; }));
+  [plVol, vfVol].forEach((r) => r.addEventListener('input', () => {
+    bgm.volume = r.value / 100;
+    if (bgm.muted && bgm.volume > 0) bgm.muted = false;
+  }));
+  plSeek.addEventListener('input', () => {
+    seeking = true;
+    const d = bgm.duration;
+    if (isFinite(d)) plCur.textContent = fmt(plSeek.value / 1000 * d);
+    setFill(plSeek);
+  });
+  plSeek.addEventListener('change', () => {
+    const d = bgm.duration;
+    if (isFinite(d)) bgm.currentTime = plSeek.value / 1000 * d;
+    seeking = false;
+  });
+
+  ['play', 'pause', 'volumechange'].forEach((ev) => bgm.addEventListener(ev, renderMusic));
+  ['timeupdate', 'loadedmetadata', 'durationchange', 'emptied'].forEach((ev) => bgm.addEventListener(ev, renderTime));
+  bgm.addEventListener('ended', () => {
+    if (mRepeat === 'one') { bgm.currentTime = 0; startPlay(); return; }
+    if (!mShuffle && mIdx === TRACKS.length - 1 && mRepeat === 'off') { renderMusic(); return; }
+    loadTrack(pickNext()); startPlay();
+  });
+  bgm.addEventListener('error', () => {
+    if (!TRACKS[mIdx]) return;
+    mErr = true;
+    songEls[mIdx].classList.add('missing');
+    plMsg.textContent = `Lagu tidak bisa dimuat. Cek file: ${TRACKS[mIdx].src}`;
+    renderMusic();
+  });
+  [plCoverImg, vfCoverImg].forEach((im) => {
+    im.addEventListener('load', () => { im.hidden = false; });
+    im.addEventListener('error', () => { im.hidden = true; });
+  });
+
+  
+  closeVol = () => { volFly.hidden = true; tbVol.setAttribute('aria-expanded', 'false'); };
+  volIsOpen = () => !volFly.hidden;
+  tbVol.addEventListener('click', () => {
+    const show = volFly.hidden;
+    closeStart();
+    volFly.hidden = !show;
+    tbVol.setAttribute('aria-expanded', String(show));
+  });
+  tbStart.addEventListener('click', () => closeVol());
+  pcScreen.addEventListener('click', (e) => { if (!e.target.closest('.vol-fly, .tb-vol')) closeVol(); });
+  vfNow.addEventListener('click', () => { openWin('player'); closeVol(); });
+
+
+  function updateMediaSession() {
+    if (!('mediaSession' in navigator) || !TRACKS[mIdx]) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: TRACKS[mIdx].title, artist: TRACKS[mIdx].artist, album: 'his space' });
+    } catch (e) {}
+  }
+  if ('mediaSession' in navigator) {
+    [['play', () => { mWant = true; startPlay(); }], ['pause', () => { mWant = false; bgm.pause(); }],
+     ['previoustrack', prevTrack], ['nexttrack', nextTrack]].forEach(([a, f]) => {
+      try { navigator.mediaSession.setActionHandler(a, f); } catch (e) {}
+    });
+  }
+
+  
+  function armGesture() {
+    if (armed) return;
+    armed = true;
+    const evs = ['click', 'keydown', 'touchend'];
+    const off = () => { evs.forEach((e) => document.removeEventListener(e, go, true)); armed = false; };
+    const go = () => setTimeout(() => {
+      if (!mWant || !bgm.paused) { off(); return; }
+      const p = bgm.play();
+      if (p && p.then) p.then(off, () => {});
+    }, 0);
+    evs.forEach((e) => document.addEventListener(e, go, true));
+  }
+  if (TRACKS.length) {
+    loadTrack(mIdx);
+    startPlay();
+  } else {
+    renderMusic();
+  }
+  window.addEventListener('pageshow', (e) => { if (e.persisted && mWant) startPlay(); });
+})();
+
+
+
+const PC_PASSWORD = '2603';   
 const lockEl = document.getElementById('lock');
 const lockForm = document.getElementById('lock-form');
 const lockInput = document.getElementById('lock-input');
@@ -445,6 +710,7 @@ lockForm.addEventListener('submit', (e) => {
 });
 lockInput.addEventListener('input', () => { lockMsg.textContent = ''; });
 
+
 const LOCK_AVATAR = 'picture/jeno 1.jfif';
 const lockAvatar = document.querySelector('.lock-avatar');
 const lockAvatarImg = document.getElementById('lock-avatar-img');
@@ -452,7 +718,9 @@ lockAvatarImg.addEventListener('load', () => { lockAvatarImg.hidden = false; loc
 lockAvatarImg.addEventListener('error', () => { lockAvatarImg.hidden = true; lockAvatar.classList.remove('has-photo'); });
 lockAvatarImg.src = LOCK_AVATAR;
 
+
 document.getElementById('lock-logout').addEventListener('click', () => closePC());
+
 
 window.addEventListener('popstate', () => {
   if (artOpen) closeArt(true);
@@ -463,7 +731,7 @@ window.addEventListener('popstate', () => {
 const catPaw = catGroup.querySelector('.cat-paw');
 const catEyes = catGroup.querySelector('.cat-eyes');
 const bowlFx = document.querySelector('.bowl-fx');
-const WALK = { dx: 46, dy: 22 };                       
+const WALK = { dx: 46, dy: 22 };                     
 const BOWL = { x: 720, y: 841 };                      
 let catBusy = false, catMode = '', catToken = 0, catAnims = [], idleT;
 

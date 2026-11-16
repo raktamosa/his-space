@@ -10,13 +10,23 @@ function el(name, attrs = {}) {
 
 const fenceLayer = document.getElementById('fence');
 
-function buildFence(x1, y1, x2, y2, count) {
+const FENCE_INSET = 15;
+const yLeft  = (x) => 325 + (175 / 337) * (x - 68)  - FENCE_INSET;
+const yRight = (x) => 500 - (172 / 345) * (x - 405) - FENCE_INSET;
+
+const GATE_L = 169;                       
+const GATE_R = 247;                       
+const CORNER = 405;                       
+const GAP = (CORNER - GATE_R) / 12;       
+
+function buildFence(xa, xb, yAt, count, skipFirst = false) {
+  const x1 = xa, y1 = yAt(xa), x2 = xb, y2 = yAt(xb);
   const rails = el('g', { stroke: '#dcdad2', 'stroke-width': 2.6, 'stroke-linecap': 'round' });
   rails.appendChild(el('line', { x1, y1: y1 - 8,  x2, y2: y2 - 8 }));
   rails.appendChild(el('line', { x1, y1: y1 - 16, x2, y2: y2 - 16 }));
   fenceLayer.appendChild(rails);
 
-  for (let i = 0; i <= count; i++) {
+  for (let i = skipFirst ? 1 : 0; i <= count; i++) {
     const t = i / count;
     const x = x1 + (x2 - x1) * t;
     const y = y1 + (y2 - y1) * t;
@@ -37,11 +47,11 @@ function buildPillar(x, y) {
   fenceLayer.appendChild(g);
 }
 
-buildFence(100, 306, 180, 348, 6);    
-buildPillar(193, 372);                
-buildPillar(251, 398);                
-buildFence(264, 400, 405, 480, 11);   
-buildFence(405, 480, 552, 392, 11);   
+buildFence(GATE_L - 5 * GAP, GATE_L, yLeft, 5);            
+buildFence(GATE_R, CORNER, yLeft, 12);                     
+buildFence(CORNER, CORNER + 11 * GAP, yRight, 11, true);   
+buildPillar(GATE_L, yLeft(GATE_L));                        
+buildPillar(GATE_R, yLeft(GATE_R));                        
 
 let calmTimer;
 
@@ -50,7 +60,7 @@ function setWind(value) {
 }
 
 function randomGust() {
-  setWind((0.8 + Math.random() * 0.9).toFixed(2));          // 0.8 – 1.7
+  setWind((0.8 + Math.random() * 0.9).toFixed(2));          
   calmTimer = setTimeout(randomGust, 3500 + Math.random() * 3500);
 }
 
