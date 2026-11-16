@@ -124,6 +124,8 @@ const hint     = document.getElementById('hint');
 const DOOR   = { x: 386, y: 258 };   
 const CENTER = { x: 400, y: 306 };   
 const ZOOM   = 16;
+const DIALOG_ZOOM = 9;
+const P_DIALOG = Math.log(DIALOG_ZOOM) / Math.log(ZOOM);
 
 let busy = false;
 let camAnim = null;
@@ -131,12 +133,12 @@ let camAnim = null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
-function zoomToDoor(duration, reverse = false) {
+function zoomRange(duration, pFrom, pTo) {
   const frames = [];
   const steps = 30;
   for (let i = 0; i <= steps; i++) {
     const u = i / steps;
-    const p = reverse ? 1 - easeInOut(u) : easeInOut(u);
+    const p = pFrom + (pTo - pFrom) * easeInOut(u);
     const s = Math.pow(ZOOM, p);
     const px = DOOR.x + (CENTER.x - DOOR.x) * p;
     const py = DOOR.y + (CENTER.y - DOOR.y) * p;
@@ -145,41 +147,159 @@ function zoomToDoor(duration, reverse = false) {
       transform: `translate(${px - s * DOOR.x}px, ${py - s * DOOR.y}px) scale(${s})`
     });
   }
+  const prev = camAnim;
   camAnim = camera.animate(frames, { duration, easing: 'linear', fill: 'forwards' });
+  if (prev) prev.cancel();
   return camAnim.finished;
 }
 
+function zoomToDoor(duration, reverse = false) {
+  return reverse ? zoomRange(duration, 1, 0) : zoomRange(duration, 0, 1);
+}
+
+const dialog   = document.getElementById('dialog');
+const dlgTyped = document.getElementById('dlg-typed');
+const dlgRest  = document.getElementById('dlg-rest');
+const DLG_LINES = ['aku ambilin cemilan dulu, kamu masuk duluan aja ya, awas kucing aku suka tidur di pintu'];
+let dlgTimer = null;
+
+function showDialog(lines) {
+  return new Promise((resolve) => {
+    let i = 0, pos = 0, full = false;
+    const paint = () => {
+      dlgTyped.textContent = lines[i].slice(0, pos);
+      dlgRest.textContent = lines[i].slice(pos);
+    };
+    const finishLine = () => {
+      clearInterval(dlgTimer);
+      dlgTimer = null;
+      pos = lines[i].length;
+      paint();
+      full = true;
+      dialog.classList.add('done');
+    };
+    const startLine = () => {
+      full = false;
+      pos = 0;
+      paint();
+      dialog.classList.remove('done');
+      dialog.setAttribute('aria-label', 'udeputi: ' + lines[i]);
+      if (reduceMotion) { finishLine(); return; }
+      dlgTimer = setInterval(() => {
+        pos++;
+        paint();
+        if (pos >= lines[i].length) finishLine();
+      }, 34);
+    };
+    const close = () => {
+      dialog.removeEventListener('click', advance);
+      document.removeEventListener('keydown', onKey);
+      dialog.classList.remove('show');
+      setTimeout(() => { dialog.hidden = true; }, 380);
+      resolve();
+    };
+    function advance(e) {
+      if (e) e.stopPropagation();
+      if (!full) { finishLine(); return; }
+      if (i < lines.length - 1) { i++; startLine(); return; }
+      close();
+    }
+    const onKey = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); advance(); }
+    };
+    dialog.addEventListener('click', advance);
+    document.addEventListener('keydown', onKey);
+    dialog.hidden = false;
+    void dialog.offsetWidth;
+    dialog.classList.add('show');
+    startLine();
+  });
+}
+
+const doorFront = document.getElementById('doorfront');
+const fdDoor = document.getElementById('fd-door');
+let entering = false;
+
 async function openDoor(e) {
-  if (busy) return;
+  if (busy || introOpen) return;
   busy = true;
   if (e) e.stopPropagation();
   hint.classList.add('gone');
   clearTimeout(calmTimer);
   setWind(1.6);
 
-  sceneSvg.classList.add('is-open');             
+  sceneSvg.classList.add('is-open');
 
   if (reduceMotion) {
     await sleep(300);
+    flash.style.transition = 'opacity .25s ease-in';
+    flash.style.opacity = 1;
+    await sleep(280);
+    doorFront.classList.add('show');
+    flash.style.transition = 'opacity .3s ease-out';
+    flash.style.opacity = 0;
+    await sleep(350);
   } else {
-    await sleep(500);                            
-    sceneSvg.classList.add('zooming');
-    const zoom = zoomToDoor(2800);               
-    await sleep(1700);
-
-    flash.style.transition = 'opacity 1s ease-in';
-    flash.style.opacity = 1;                    
+    await sleep(500);
+    sceneSvg.classList.add('zooming', 'at-door');
+    const zoom = zoomRange(1600, 0, P_DIALOG);
+    await sleep(700);
+    flash.style.transition = 'opacity .9s ease-in';
+    flash.style.opacity = 1;
     await zoom;
     await sleep(100);
+
+    doorFront.classList.add('show');
+    void doorFront.offsetWidth;
+    flash.style.transition = 'opacity .9s ease-out';
+    flash.style.opacity = 0;
+    await sleep(900);
   }
 
-  window.location.href = 'index2.html';        
+  await showDialog(DLG_LINES);
+  await sleep(400);
+  doorFront.classList.add('ready');
+  try { fdDoor.focus({ preventScroll: true }); } catch (err) {}
 }
+
+async function enterRoom(e) {
+  if (e) e.stopPropagation();
+  if (entering || !doorFront.classList.contains('ready')) return;
+  entering = true;
+  doorFront.classList.remove('ready');
+  doorFront.classList.add('open');
+
+  if (reduceMotion) {
+    flash.style.transition = 'opacity .3s ease-in';
+    flash.style.opacity = 1;
+    await sleep(350);
+  } else {
+    await sleep(650);
+    flash.style.transition = 'opacity 1s ease-in';
+    flash.style.opacity = 1;
+    await sleep(1100);
+  }
+
+  window.location.href = 'index2.html';
+}
+
+fdDoor.addEventListener('click', enterRoom);
+fdDoor.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    enterRoom(e);
+  }
+});
 
 window.addEventListener('pageshow', (e) => {
   if (!e.persisted) return;
   if (camAnim) camAnim.cancel();
-  sceneSvg.classList.remove('is-open', 'zooming');
+  sceneSvg.classList.remove('is-open', 'zooming', 'at-door');
+  clearInterval(dlgTimer);
+  dialog.classList.remove('show', 'done');
+  dialog.hidden = true;
+  doorFront.classList.remove('show', 'open', 'ready');
+  entering = false;
   flash.style.transition = 'none';
   flash.style.opacity = 0;
   hint.classList.remove('gone');
@@ -233,3 +353,17 @@ async function arriveFromRoom() {
 }
 
 if (/[?&]exit=1/.test(location.search)) arriveFromRoom();
+
+let introOpen = false;
+const INTRO_LINES = ['wih, udah ga sabar ya main ke rumah aku? ketuk pintunya pelan pelan ya'];
+
+async function playIntro() {
+  introOpen = true;
+  hint.classList.add('gone');
+  await sleep(900);
+  await showDialog(INTRO_LINES);
+  introOpen = false;
+  hint.classList.remove('gone');
+}
+
+if (!/[?&]exit=1/.test(location.search)) playIntro();

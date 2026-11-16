@@ -253,12 +253,41 @@ for (const a in wins) {
   });
 }
 
+let popOpen = null;
+function openPop(name, from) {
+  const ov = document.getElementById('msg-' + name);
+  if (!ov) return;
+  popOpen = { ov, from };
+  ov.hidden = false;
+  const box = ov.querySelector('.msg-box');
+  box.classList.remove('pop');
+  void box.offsetWidth;
+  box.classList.add('pop');
+  const ok = ov.querySelector('.msg-ok');
+  if (ok) ok.focus({ preventScroll: true });
+}
+function closePop() {
+  if (!popOpen) return;
+  const { ov, from } = popOpen;
+  popOpen = null;
+  ov.hidden = true;
+  if (from) from.focus({ preventScroll: true });
+}
+document.querySelectorAll('.msg-ov').forEach((ov) => {
+  ov.querySelectorAll('.msg-ok, [data-act="close"]').forEach((b) => b.addEventListener('click', closePop));
+  ov.addEventListener('click', (e) => { if (e.target === ov) closePop(); });
+});
+document.addEventListener('keydown', (e) => {
+  if (popOpen && e.key === 'Escape') { e.stopImmediatePropagation(); closePop(); }
+}, true);
+
 deskIcons.forEach((ic) => {
+  const open = () => (ic.dataset.pop ? openPop(ic.dataset.pop, ic) : openWin(ic.dataset.app));
   ic.addEventListener('click', (e) => {
-    if (e.detail === 0 || isCoarse()) { openWin(ic.dataset.app); return; }
+    if (e.detail === 0 || isCoarse()) { open(); return; }
     deskIcons.forEach((o) => o.classList.toggle('sel', o === ic));
   });
-  ic.addEventListener('dblclick', () => openWin(ic.dataset.app));
+  ic.addEventListener('dblclick', open);
 });
 pcScreen.addEventListener('click', (e) => {
   if (!e.target.closest('.desk-icon')) deskIcons.forEach((o) => o.classList.remove('sel'));
@@ -439,10 +468,10 @@ let volIsOpen = () => false;
   let mIdx = 0;
   let mRepeat = 'all';
   let mShuffle = false;
-  let mWant = true;                 // biar pause
+  let mWant = true;                 // false kalau pengguna sengaja menekan jeda
   let mErr = false, seeking = false, armed = false;
   const volAttr = parseFloat(byId('songs').dataset.volume);
-  bgm.volume = Math.min(Math.max(isFinite(volAttr) ? volAttr : 5, 0), 100) / 100;
+  bgm.volume = Math.min(Math.max(isFinite(volAttr) ? volAttr : 2, 0), 100) / 100;
   bgm.muted = false;
 
   const fmt = (s) => {
@@ -836,3 +865,90 @@ function idleTick() {
   }, 2500 + Math.random() * 3500);
 }
 if (!reduceMotion) { idleTick(); setTimeout(() => { if (!catBusy && !inside.classList.contains('night')) groom('face'); }, 2500); }
+
+
+/* ---- dialog pembuka "me" ---- */
+const ROOM_LINES = [
+  'kamar nya deputi bagus banget, dia lagi muter lagu kesukaan kita ya?',
+  'tapi aku atur volume lagu nya di komputer dia ah',
+];
+const dialogEl = document.getElementById('dialog');
+const dlgTyped = document.getElementById('dlg-typed');
+const dlgRest = document.getElementById('dlg-rest');
+let dlgTimer = null;
+
+function showDialog(lines) {
+  return new Promise((resolve) => {
+    let i = 0, pos = 0, full = false;
+    const paint = () => {
+      dlgTyped.textContent = lines[i].slice(0, pos);
+      dlgRest.textContent = lines[i].slice(pos);
+    };
+    const finishLine = () => {
+      clearInterval(dlgTimer);
+      dlgTimer = null;
+      pos = lines[i].length;
+      paint();
+      full = true;
+      dialogEl.classList.add('done');
+    };
+    const startLine = () => {
+      full = false;
+      pos = 0;
+      paint();
+      dialogEl.classList.remove('done');
+      dialogEl.setAttribute('aria-label', 'me: ' + lines[i]);
+      if (reduceMotion) { finishLine(); return; }
+      dlgTimer = setInterval(() => {
+        pos++;
+        paint();
+        if (pos >= lines[i].length) finishLine();
+      }, 34);
+    };
+    const close = () => {
+      dialogEl.removeEventListener('click', advance);
+      document.removeEventListener('keydown', onKey);
+      dialogEl.classList.remove('show');
+      setTimeout(() => { dialogEl.hidden = true; }, 380);
+      resolve();
+    };
+    function advance(e) {
+      if (e) e.stopPropagation();
+      if (!full) { finishLine(); return; }
+      if (i < lines.length - 1) { i++; startLine(); return; }
+      close();
+    }
+    const onKey = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); advance(); }
+    };
+    dialogEl.addEventListener('click', advance);
+    document.addEventListener('keydown', onKey);
+    dialogEl.hidden = false;
+    void dialogEl.offsetWidth;
+    dialogEl.classList.add('show');
+    startLine();
+  });
+}
+
+(async () => {
+  await new Promise((r) => setTimeout(r, 1500));
+  inside.inert = true;
+  await showDialog(ROOM_LINES);
+  inside.inert = false;
+  showQuest();
+})();
+
+/* ---- quest: hilang begitu volume musik disentuh ---- */
+function showQuest() {
+  const q = document.getElementById('quest');
+  const audio = document.getElementById('bgm');
+  q.hidden = false;
+  void q.offsetWidth;
+  q.classList.add('show');
+  const done = () => {
+    audio.removeEventListener('volumechange', done);
+    q.classList.remove('show');
+    setTimeout(() => { q.hidden = true; }, reduceMotion ? 0 : 400);
+  };
+  audio.addEventListener('volumechange', done);
+}
