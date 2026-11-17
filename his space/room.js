@@ -1048,10 +1048,16 @@ function showQuest() {
   q.hidden = false;
   void q.offsetWidth;
   q.classList.add('show');
+  const sliders = ['pl-vol', 'vf-vol'].map((id) => document.getElementById(id)).filter(Boolean);
+  const mutes = ['pl-mute', 'vf-mute'].map((id) => document.getElementById(id)).filter(Boolean);
   const done = () => {
     audio.removeEventListener('volumechange', done);
+    sliders.forEach((el) => el.removeEventListener('input', done));
+    mutes.forEach((el) => el.removeEventListener('click', done));
     q.classList.remove('show');
     setTimeout(() => { q.hidden = true; }, reduceMotion ? 0 : 400);
   };
   audio.addEventListener('volumechange', done);
+  sliders.forEach((el) => el.addEventListener('input', done));
+  mutes.forEach((el) => el.addEventListener('click', done));
 }
