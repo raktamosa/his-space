@@ -114,9 +114,10 @@ if (!reduceMotion) {
 
 document.addEventListener('click', () => { if (!busy) bigGust(); });
 
-// volume angin 
+// suara angin
 const windSfx = document.getElementById('wind-sfx');
 const WIND_VOL = 1;
+const WIND_BOOST = 2;
 let windFade = null;
 
 function fadeWind(to, ms) {
@@ -134,8 +135,36 @@ function fadeWind(to, ms) {
   }, 50);
 }
 
+let windCtx = null;
+
+function setupWindBoost() {
+  if (windCtx || !windSfx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  try {
+    windCtx = new AC();
+    const src = windCtx.createMediaElementSource(windSfx);
+    const gain = windCtx.createGain();
+    gain.gain.value = WIND_BOOST;
+    const limiter = windCtx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+    src.connect(gain).connect(limiter).connect(windCtx.destination);
+    ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => {
+      if (windCtx && windCtx.state === 'suspended') windCtx.resume();
+    }, { passive: true }));
+  } catch (err) {
+    windCtx = null;
+  }
+}
+
 function startWind() {
   if (!windSfx) return Promise.resolve();
+  setupWindBoost();
+  if (windCtx && windCtx.state === 'suspended') windCtx.resume();
   windSfx.volume = 0;
   const p = windSfx.play();
   fadeWind(WIND_VOL, 2500);
