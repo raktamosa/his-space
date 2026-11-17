@@ -395,8 +395,7 @@ updateTb();
 
 
 const stickySpot = document.querySelector('.hotspot[aria-label="Catatan" i]');
-const stickyPaper = document.querySelector('.hotspot[aria-label="Catatan" i]').closest('svg')
-  .querySelector('g[transform="matrix(1,-0.553,0,1,505.0,298.7)"]');
+const stickyPaper = document.getElementById('sticky-paper');
 const stickyOv = document.getElementById('sticky');
 const stickyNote = document.getElementById('sticky-note');
 let stickyOpen = false, stickyPushed = false;

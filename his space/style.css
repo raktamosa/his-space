@@ -1114,7 +1114,7 @@ html.arriving .welcome { display: none; }
 }
 .welcome-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .welcome-btn:active { transform: translateY(1px); }
-.welcome-btn:focus-visible { outline: 3px solid #dfb989; outline-offset: 3px; }
+.welcome-btn:focus-visible { outline: 3px solid #ecc99b; outline-offset: 3px; }
 
 @media (max-width: 700px) and (orientation: portrait) {
   .scene,
@@ -1161,4 +1161,12 @@ html.arriving .welcome { display: none; }
     height: min(26vh, 220px);
     max-width: 58%;
   }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  #dialog .dlg-wrap { width: min(100%, 560px); }
+  #dialog .dlg-box { min-height: 66px; padding: 18px 30px 12px 14px; }
+  #dialog .dlg-text { font-size: .97rem; line-height: 1.4; }
+  #dialog .dlg-name { font-size: .78rem; padding: 3px 13px 4px; top: -13px; }
+  #dialog .dlg-portrait { height: min(21vh, 180px); max-width: 52%; bottom: calc(100% - 20px); }
 }
