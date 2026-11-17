@@ -115,6 +115,33 @@ if (!reduceMotion) {
 document.addEventListener('click', () => { if (!busy) bigGust(); });
 
 
+const windSfx = document.getElementById('wind-sfx');
+const WIND_VOL = 0.45;
+let windFade = null;
+
+function fadeWind(to, ms) {
+  if (!windSfx) return;
+  clearInterval(windFade);
+  const from = windSfx.volume;
+  const t0 = performance.now();
+  windFade = setInterval(() => {
+    const u = Math.min(1, (performance.now() - t0) / ms);
+    windSfx.volume = from + (to - from) * u;
+    if (u >= 1) {
+      clearInterval(windFade);
+      if (to === 0) windSfx.pause();
+    }
+  }, 50);
+}
+
+function startWind() {
+  if (!windSfx) return Promise.resolve();
+  windSfx.volume = 0;
+  const p = windSfx.play();
+  fadeWind(WIND_VOL, 2500);
+  return p || Promise.resolve();
+}
+
 const sceneSvg = document.getElementById('scene');
 const camera   = document.getElementById('camera');
 const door     = document.getElementById('door');
@@ -301,6 +328,7 @@ async function openDoor(e) {
   hint.classList.add('gone');
   clearTimeout(calmTimer);
   setWind(1.6);
+  fadeWind(0, 1200);
 
   sceneSvg.classList.add('is-open');
 
@@ -376,6 +404,7 @@ window.addEventListener('pageshow', (e) => {
   entering = false;
   flash.style.transition = 'none';
   flash.style.opacity = 0;
+  startWind().catch(() => {});
   hint.classList.remove('gone');
   setWind(1);
   busy = false;
@@ -440,4 +469,25 @@ async function playIntro() {
   hint.classList.remove('gone');
 }
 
-if (!/[?&]exit=1/.test(location.search)) playIntro();
+const welcome = document.getElementById('welcome');
+const welcomeStart = document.getElementById('welcome-start');
+
+function startFromWelcome(e) {
+  if (e) e.stopPropagation();
+  welcome.classList.add('hide');
+  startWind().catch(() => {});
+  setTimeout(() => { welcome.hidden = true; }, 480);
+  playIntro();
+}
+
+if (/[?&]exit=1/.test(location.search)) {
+  welcome.hidden = true;
+  startWind().catch(() => {
+    window.addEventListener('pointerdown', () => startWind().catch(() => {}), { once: true });
+  });
+} else {
+  introOpen = true;
+  hint.classList.add('gone');
+  welcomeStart.addEventListener('click', startFromWelcome, { once: true });
+  try { welcomeStart.focus({ preventScroll: true }); } catch (err) {}
+}

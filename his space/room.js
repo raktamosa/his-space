@@ -968,7 +968,7 @@ const dlgBlip = (() => {
 
 const ROOM_LINES = [
   'kamar nya deputi bagus banget, dia lagi muter lagu kesukaan kita ya?',
-  'tapi aku atur volume lagu nya di komputer dia ah',
+  'tapi aku mau atur volume lagu nya di komputer dia ah',
 ];
 const dialogEl = document.getElementById('dialog');
 const dlgTyped = document.getElementById('dlg-typed');
