@@ -997,6 +997,10 @@ function showDialog(lines) {
       paint();
       dialogEl.classList.remove('done');
       dialogEl.setAttribute('aria-label', 'me: ' + lines[i]);
+      const nextEl = dialogEl.querySelector('.dlg-next');
+      const more = i < lines.length - 1;
+      nextEl.textContent = more ? 'next' : '\u25BC';
+      nextEl.classList.toggle('is-text', more);
       if (reduceMotion) { finishLine(); return; }
       dlgTimer = setInterval(() => {
         pos++;
