@@ -42,6 +42,8 @@ function tickClock() {
   const mm = String(d.getMinutes()).padStart(2, '0');
   clockH.textContent = hh;
   clockM.textContent = mm;
+  document.querySelectorAll('.clock-h-mirror').forEach((n) => { n.textContent = hh; });
+  document.querySelectorAll('.clock-m-mirror').forEach((n) => { n.textContent = mm; });
   pcTime.textContent = `${hh}:${mm}`;
   pcDate.textContent = d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
@@ -358,7 +360,7 @@ function openPC() {
   pc.hidden = false;
   document.getElementById('page2').inert = true;
   requestAnimationFrame(() => requestAnimationFrame(() => pc.classList.add('open')));
-  (pcLocked ? lockInput : pcScreen).focus({ preventScroll: true });
+  pcScreen.focus({ preventScroll: true });
   if (!pcPushed) { history.pushState({ ov: 'pc' }, ''); pcPushed = true; }
 }
 function closePC(fromPop) {
@@ -968,7 +970,7 @@ const dlgBlip = (() => {
 
 const ROOM_LINES = [
   'kamar nya deputi bagus banget, dia lagi muter lagu kesukaan kita ya?',
-  'tapi aku mau atur volume lagu nya di komputer dia ah',
+  'tapi aku atur volume lagu nya di komputer dia ah',
 ];
 const dialogEl = document.getElementById('dialog');
 const dlgTyped = document.getElementById('dlg-typed');

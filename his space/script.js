@@ -114,7 +114,7 @@ if (!reduceMotion) {
 
 document.addEventListener('click', () => { if (!busy) bigGust(); });
 
-
+// volume angin 
 const windSfx = document.getElementById('wind-sfx');
 const WIND_VOL = 1;
 let windFade = null;
