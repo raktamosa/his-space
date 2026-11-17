@@ -116,7 +116,7 @@ document.addEventListener('click', () => { if (!busy) bigGust(); });
 
 
 const windSfx = document.getElementById('wind-sfx');
-const WIND_VOL = 0.45;
+const WIND_VOL = 1;
 let windFade = null;
 
 function fadeWind(to, ms) {
